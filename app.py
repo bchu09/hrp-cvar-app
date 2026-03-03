@@ -10,6 +10,7 @@ from vnstock import Vnstock
 from datetime import datetime
 
 # --- 1. CẤU HÌNH HỆ THỐNG & AI ---
+import os
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=GROQ_API_KEY)
 GOLD_URL = "https://api.vnappmob.com/api/v2/gold/sjc"
@@ -178,4 +179,5 @@ if df_prices is not None:
         st.plotly_chart(fig_perf, use_container_width=True)
 
 else:
+
     st.error("Lỗi: Hãy chạy file test_2.py trước để tạo dữ liệu!")
