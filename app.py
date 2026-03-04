@@ -58,11 +58,15 @@ def get_sjc_realtime():
 def get_stock_price_hybrid(symbol, df_prices):
     try:
         stock = Vnstock().stock(symbol=symbol, source='VCI')
-        rt_price = stock.trading.price_board()['Lần cuối'].values[0] * 1000
-        if rt_price > 0: 
-            return rt_price
-    except: 
+
+        df = stock.quote.intraday()
+
+        if df is not None and not df.empty:
+            return float(df['price'].iloc[-1]) * 1000
+
+    except:
         pass
+
     return df_prices[symbol].iloc[-1] * 1000
 
 # --- LOAD DATA (FIX CACHE) ---
@@ -193,3 +197,4 @@ if df_prices is not None:
 
 else:
     st.error("Lỗi: Hãy chạy file test_final.py trước để tạo dữ liệu!")
+
