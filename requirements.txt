@@ -7,6 +7,5 @@ groq
 requests
 vnstock
 yfinance
-
 PyPortfolioOpt
 streamlit-autorefresh
