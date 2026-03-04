@@ -55,23 +55,22 @@ def get_sjc_realtime():
     except: 
         return None
 
+import yfinance as yf
 def get_stock_price_hybrid(symbol, df_prices):
+
     try:
 
-        url = f"https://finfo-api.vndirect.com.vn/v4/stock_prices?q=code:{symbol}~floor:HOSE&fields=lastPrice"
+        ticker = yf.Ticker(f"{symbol}.VN")
 
-        r = requests.get(url, timeout=3).json()
+        price = ticker.fast_info["last_price"]
 
-        price = r['data'][0]['lastPrice']
-
-        if price is not None:
-            return float(price) * 1000
+        if price:
+            return float(price)
 
     except:
         pass
 
-    return df_prices[symbol].iloc[-1] * 1000
-
+    return df_prices[symbol].iloc[-1]
 # --- LOAD DATA (FIX CACHE) ---
 @st.cache_data(ttl=600)
 def load_data():
@@ -200,5 +199,6 @@ if df_prices is not None:
 
 else:
     st.error("Lỗi: Hãy chạy file test_final.py trước để tạo dữ liệu!")
+
 
 
