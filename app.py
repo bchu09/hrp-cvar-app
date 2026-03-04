@@ -158,7 +158,12 @@ if df_prices is not None:
     # --- XÂY DỰNG DANH MỤC MỚI ---
     else:
         st.title("Xây dựng danh mục mới")
-        von = st.sidebar.number_input("Vốn đầu tư (VND):", min_value=1000000, value=100000000)
+        von = st.sidebar.number_input(
+            "Vốn đầu tư (VND):",
+            min_value=1000000,
+            value=100000000,
+            format="%d"
+        )
         selected_new = st.sidebar.multiselect("Chọn mã muốn đầu tư:", options=df_ret.columns.tolist())
         
         if len(selected_new) >= 2:
@@ -199,6 +204,7 @@ if df_prices is not None:
 
 else:
     st.error("Lỗi: Hãy chạy file test_final.py trước để tạo dữ liệu!")
+
 
 
 
