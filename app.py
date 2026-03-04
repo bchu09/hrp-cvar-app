@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -7,11 +8,10 @@ from scipy.spatial.distance import squareform
 from groq import Groq
 import requests
 from vnstock import Vnstock
-from datetime import datetime
 import os
 
 # ==============================
-# PAGE CONFIG + AUTO REFRESH
+# PAGE CONFIG
 # ==============================
 
 st.set_page_config(
@@ -19,7 +19,8 @@ st.set_page_config(
     layout="wide"
 )
 
-st.autorefresh(interval=60000, key="data_refresh")
+# Auto refresh every 60 seconds
+st_autorefresh(interval=60000, key="data_refresh")
 
 # ==============================
 # API KEYS
@@ -33,7 +34,7 @@ client = Groq(api_key=GROQ_API_KEY)
 GOLD_URL = "https://api.vnappmob.com/api/v2/gold/sjc"
 
 # ==============================
-# LOAD DATA (AUTO REFRESH)
+# LOAD DATA
 # ==============================
 
 @st.cache_data(ttl=600)
@@ -53,13 +54,13 @@ def load_data():
             parse_dates=True
         )
 
-        performance = pd.read_csv(
+        perf = pd.read_csv(
             "historical_performance.csv",
             index_col=0,
             parse_dates=True
         )
 
-        return prices, returns, performance
+        return prices, returns, perf
 
     except:
 
@@ -69,7 +70,7 @@ def load_data():
 df_prices, df_ret, df_perf = load_data()
 
 # ==============================
-# AI ANALYSIS
+# AI ADVICE
 # ==============================
 
 def get_ai_advice(prompt_text):
@@ -81,16 +82,12 @@ def get_ai_advice(prompt_text):
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "Bạn là chuyên gia phân tích định lượng tại một công ty đầu tư. "
-                        "Hãy đánh giá danh mục HRP-CVaR dựa trên tail risk, đa dạng hóa "
-                        "và khả năng phòng vệ CVaR. Giải thích ngắn gọn, tối đa 3 câu."
-                    )
+                    "content":
+                    "Bạn là chuyên gia phân tích định lượng. "
+                    "Hãy nhận xét danh mục HRP-CVaR về tail risk "
+                    "và đa dạng hóa. Tối đa 3 câu."
                 },
-                {
-                    "role": "user",
-                    "content": prompt_text
-                }
+                {"role": "user", "content": prompt_text}
             ],
             temperature=0.6
         )
@@ -99,7 +96,7 @@ def get_ai_advice(prompt_text):
 
     except:
 
-        return "Hệ thống AI đang bận xử lý dữ liệu."
+        return "AI đang bận xử lý."
 
 # ==============================
 # GOLD PRICE
@@ -124,7 +121,7 @@ def get_sjc_realtime():
         return None
 
 # ==============================
-# REALTIME STOCK PRICE
+# STOCK PRICE
 # ==============================
 
 def get_stock_price(symbol):
@@ -136,21 +133,18 @@ def get_stock_price(symbol):
         rt_price = stock.trading.price_board()["Lần cuối"].values[0] * 1000
 
         if rt_price > 0:
-
             return rt_price
 
     except:
-
         pass
 
     if symbol in df_prices.columns:
-
         return df_prices[symbol].iloc[-1] * 1000
 
     return None
 
 # ==============================
-# HRP CVAR
+# HRP-CVAR
 # ==============================
 
 def get_hrp_weights(returns):
@@ -184,10 +178,7 @@ def get_hrp_weights(returns):
         items = [
             i[j:k]
             for i in items
-            for j, k in (
-                (0, len(i)//2),
-                (len(i)//2, len(i))
-            )
+            for j, k in ((0, len(i)//2), (len(i)//2, len(i)))
             if len(i) > 1
         ]
 
@@ -214,21 +205,21 @@ def get_hrp_weights(returns):
 
 if df_prices is None:
 
-    st.error("Dữ liệu chưa tồn tại. Hãy chạy file backtest trước.")
+    st.error("Chưa có dữ liệu. Hãy chạy file backtest trước.")
 
     st.stop()
 
 st.sidebar.title("Hệ thống tư vấn")
 
 mode = st.sidebar.radio(
-    "Chọn mục tiêu đầu tư:",
+    "Chọn mục tiêu đầu tư",
     ["Tối ưu danh mục hiện có", "Xây dựng danh mục mới"]
 )
 
 gold_price = get_sjc_realtime()
 
 # ==============================
-# REBALANCE PORTFOLIO
+# PORTFOLIO OPTIMIZATION
 # ==============================
 
 if mode == "Tối ưu danh mục hiện có":
@@ -236,7 +227,7 @@ if mode == "Tối ưu danh mục hiện có":
     st.title("Tối ưu danh mục hiện có")
 
     selected = st.sidebar.multiselect(
-        "Chọn mã đang sở hữu:",
+        "Chọn mã đang sở hữu",
         options=df_ret.columns.tolist()
     )
 
@@ -244,8 +235,7 @@ if mode == "Tối ưu danh mục hiện có":
         a: st.sidebar.number_input(
             f"Số lượng {a}",
             min_value=0.0,
-            step=1.0,
-            key=f"h_{a}"
+            step=1.0
         )
         for a in selected
     }
@@ -257,55 +247,44 @@ if mode == "Tối ưu danh mục hiện có":
             for a in selected
         }
 
-        cur_vals = {
-            a: holdings[a] * prices[a]
-            for a in selected
-        }
+        cur_vals = {a: holdings[a]*prices[a] for a in selected}
 
         total = sum(cur_vals.values())
 
         if total > 0:
 
-            cur_w = {a: v/total for a, v in cur_vals.items()}
+            cur_w = {a: v/total for a,v in cur_vals.items()}
 
             opt_w = get_hrp_weights(df_ret[selected])
 
-            c1, c2 = st.columns(2)
+            c1,c2 = st.columns(2)
 
             with c1:
 
-                fig = go.Figure(
-                    data=[
-                        go.Pie(
-                            labels=list(cur_w.keys()),
-                            values=list(cur_w.values()),
-                            hole=0.4
-                        )
-                    ]
-                )
+                fig = go.Figure(data=[go.Pie(
+                    labels=list(cur_w.keys()),
+                    values=list(cur_w.values()),
+                    hole=0.4
+                )])
 
                 fig.update_layout(title="Tỷ trọng hiện tại")
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig,use_container_width=True)
 
             with c2:
 
-                fig = go.Figure(
-                    data=[
-                        go.Pie(
-                            labels=opt_w.index,
-                            values=opt_w.values,
-                            hole=0.4
-                        )
-                    ]
-                )
+                fig = go.Figure(data=[go.Pie(
+                    labels=opt_w.index,
+                    values=opt_w.values,
+                    hole=0.4
+                )])
 
-                fig.update_layout(title="Tỷ trọng đề xuất (HRP-CVaR)")
+                fig.update_layout(title="Tỷ trọng đề xuất")
 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig,use_container_width=True)
 
 # ==============================
-# BUILD NEW PORTFOLIO
+# NEW PORTFOLIO
 # ==============================
 
 else:
@@ -313,90 +292,56 @@ else:
     st.title("Xây dựng danh mục mới")
 
     capital = st.sidebar.number_input(
-        "Vốn đầu tư (VND)",
+        "Vốn đầu tư",
         min_value=1000000,
         value=100000000
     )
 
     selected = st.sidebar.multiselect(
-        "Chọn mã muốn đầu tư",
+        "Chọn tài sản",
         options=df_ret.columns.tolist()
     )
 
     if len(selected) >= 2:
 
         prices = {
-            a: (gold_price if a == "Gold" else get_stock_price(a))
+            a:(gold_price if a=="Gold" else get_stock_price(a))
             for a in selected
         }
 
         opt_w = get_hrp_weights(df_ret[selected])
 
-        fig = go.Figure(
-            data=[
-                go.Pie(
-                    labels=opt_w.index,
-                    values=opt_w.values,
-                    hole=0.4
-                )
-            ]
-        )
+        fig = go.Figure(data=[go.Pie(
+            labels=opt_w.index,
+            values=opt_w.values,
+            hole=0.4
+        )])
 
         fig.update_layout(title="Phân bổ vốn tối ưu")
 
-        st.plotly_chart(fig, use_container_width=True)
-
-        result = pd.DataFrame({
-
-            "Tài sản": selected,
-
-            "Giá thực tế (VND)": [prices[a] for a in selected],
-
-            "Tỷ trọng (%)": [opt_w[a]*100 for a in selected],
-
-            "Số tiền mua (VND)": [opt_w[a]*capital for a in selected],
-
-            "Số lượng mua": [(opt_w[a]*capital)/prices[a] for a in selected]
-
-        })
-
-        st.dataframe(result.style.format({
-
-            "Giá thực tế (VND)": "{:,.0f}",
-
-            "Tỷ trọng (%)": "{:.2f}",
-
-            "Số tiền mua (VND)": "{:,.0f}",
-
-            "Số lượng mua": "{:.2f}"
-
-        }))
+        st.plotly_chart(fig,use_container_width=True)
 
 # ==============================
-# BACKTEST CHART
+# BACKTEST
 # ==============================
 
 st.markdown("---")
 
-st.subheader("Hiệu suất tích lũy lịch sử (Backtest 2018-2026)")
+st.subheader("Hiệu suất tích lũy (Backtest 2018-2026)")
 
 fig = go.Figure()
 
-fig.add_trace(
-    go.Scatter(
-        x=df_perf.index,
-        y=df_perf["HRP-CVaR"],
-        name="HRP-CVaR"
-    )
-)
+fig.add_trace(go.Scatter(
+    x=df_perf.index,
+    y=df_perf["HRP-CVaR"],
+    name="HRP-CVaR"
+))
 
-fig.add_trace(
-    go.Scatter(
-        x=df_perf.index,
-        y=df_perf["MVO-MaxSharpe"],
-        name="MVO-MaxSharpe"
-    )
-)
+fig.add_trace(go.Scatter(
+    x=df_perf.index,
+    y=df_perf["MVO-MaxSharpe"],
+    name="MVO-MaxSharpe"
+))
 
 fig.update_layout(
     template="plotly_white",
@@ -405,10 +350,8 @@ fig.update_layout(
         dtick="M12",
         title="Year"
     ),
-    yaxis=dict(
-        title="Cumulative Growth"
-    ),
+    yaxis=dict(title="Cumulative Growth"),
     height=400
 )
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig,use_container_width=True)
