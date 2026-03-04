@@ -164,6 +164,7 @@ if df_prices is not None:
             value=100000000,
             format="%d"
         )
+        st.sidebar.caption(f"Số vốn: {von:,.0f} VND")
         selected_new = st.sidebar.multiselect("Chọn mã muốn đầu tư:", options=df_ret.columns.tolist())
         
         if len(selected_new) >= 2:
@@ -204,6 +205,7 @@ if df_prices is not None:
 
 else:
     st.error("Lỗi: Hãy chạy file test_final.py trước để tạo dữ liệu!")
+
 
 
 
