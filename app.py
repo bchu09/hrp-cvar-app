@@ -57,12 +57,15 @@ def get_sjc_realtime():
 
 def get_stock_price_hybrid(symbol, df_prices):
     try:
-        stock = Vnstock().stock(symbol=symbol, source='VCI')
 
-        df = stock.quote.intraday()
+        url = f"https://finfo-api.vndirect.com.vn/v4/stock_prices?q=code:{symbol}~floor:HOSE&fields=lastPrice"
 
-        if df is not None and not df.empty:
-            return float(df['price'].iloc[-1]) * 1000
+        r = requests.get(url, timeout=3).json()
+
+        price = r['data'][0]['lastPrice']
+
+        if price is not None:
+            return float(price) * 1000
 
     except:
         pass
@@ -197,4 +200,5 @@ if df_prices is not None:
 
 else:
     st.error("Lỗi: Hãy chạy file test_final.py trước để tạo dữ liệu!")
+
 
